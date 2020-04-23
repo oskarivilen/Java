@@ -17,12 +17,11 @@ import java.util.List;
  */
 public class JDBCShoppingListItemDao implements ShoppingListItemDao {
 
-    // Tietokannan sijainti voidaan asettaa myös ympäristömuuttujaan, katso:
-    // https://git.io/JfkVk
-    private static final String JDBC_URL = "jdbc:sqlite:users:/Oskari/Documents/shoppingList.db";
+   
+    private static final String JDBC_URL = "jdbc:sqlite:users:/Oskari/Documents/shoppingList.sqlite";
     
     private int nextId = 1;
-    List<ShoppingListItem> items = new ArrayList<>();
+    
 
     @Override
     public List<ShoppingListItem> getAllItems() {
@@ -30,10 +29,10 @@ public class JDBCShoppingListItemDao implements ShoppingListItemDao {
         PreparedStatement statement = null;
         ResultSet results = null;
 
-       
+        List<ShoppingListItem> items = new ArrayList<>();
 
         try {
-            // muodostetaan yhteys tietokantaan
+            
             connection = DriverManager.getConnection(JDBC_URL);
 
             // muodostetaan kysely "SELECT * FROM ShoppingListItem"
@@ -62,7 +61,7 @@ public class JDBCShoppingListItemDao implements ShoppingListItemDao {
     @Override
     public ShoppingListItem getItem(long id) {
     
-    	 return items.stream().filter(item -> item.getId() == id).findFirst().orElse(null);
+    	return null;
         
     }
 
@@ -76,14 +75,60 @@ public class JDBCShoppingListItemDao implements ShoppingListItemDao {
         // voit myös asettaa generoidun id:n newItem-oliolle setId-metodilla, katso:
         // https://git.io/JfkVJ
     	
-    	  newItem.setId(nextId++);
-          return items.add(newItem);
+    	String SQL = "INSERT INTO shoppingList";
+
+        boolean id = true;
+
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(SQL,
+                Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setString(1, newItem.getTitle());
+           
+
+            int affectedRows = pstmt.executeUpdate();
+            // check the affected rows 
+            if (affectedRows > 0) {
+                // get the ID back
+                try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        id = rs.getLong(1);
+                    }
+                } catch (SQLException ex) {
+                    System.out.println(ex.getMessage());
+                }
+            }
+        } catch (SQLException ex) {
+            System.out.println(ex.getMessage());
+        }
+        return id;
     }
 
     @Override
     public boolean removeItem(ShoppingListItem item) {
-    	 return items.remove(item);
-    }
+    	  Connection connection = null;
+    	  PreparedStatement statement = null;
+          try
+          {
+              Class.forName("com.mysql.jdbc.Driver");
+              connection = DriverManager.getConnection(JDBC_URL);
+               
+              statement = connection.prepareStatement("DELETE * FROM ShoppingListItem");
+              
+          } 
+          catch (Exception e) {
+              e.printStackTrace();
+          }finally {
+              try {   
+            	  statement.close();
+                  connection.close();
+              } catch (Exception e) {
+                  e.printStackTrace();
+              }
+          }
+          return false;
+      }  
+    
 
     private void close(Connection connection, PreparedStatement statement, ResultSet results) {
         if (results != null) {
